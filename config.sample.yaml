@@ -1,4 +1,3 @@
 pivotal:
   api_uri: 'https://www.pivotaltracker.com/services/v5/'
   tracker_token: ''
-  project_id: ''

@@ -1,6 +1,6 @@
 # pivotal-tools
 
-Set of useful tools for Pivotal API https://www.pivotaltracker.com
+Set of useful tools for [Pivotal API](https://www.pivotaltracker.com/help/api)
 
 ## Install
 
@@ -14,10 +14,29 @@ Second, copy sample config to a new file `config.yaml`:
 
 `cp config.sample.yaml config.yaml`
 
-Third, update your `config.yaml` with `pivotal.project_id` and `pivotal.tracker_token` obtained from Pivotal.
+Third, update your `config.yaml` with `pivotal.tracker_token` obtained from [Pivotal profile page](https://www.pivotaltracker.com/profile).
 
 ## Use
 
-`python3 generate_weekly_report` to print report for current week
+Entry point is the `cli.py` script.
 
-`python3 generate_weekly_report --weeks-ago=1` to print report for previous week
+### Arguments for `cli.py`
+
+ * __required__ `--report` select report type, should be one of:
+    * `weekly_dev` weekly report for developer
+ * `--weeks-ago` use 0 for current week (default), 1 for previous and so on
+ * `--projects` filter stories by projects using space-separated list of project ids
+
+### Examples
+
+Print developer report for current week:
+
+`python3 cli.py --report weekly_dev` 
+
+Print developer report for previous week:
+
+`python3 cli.py --report weekly_dev --weeks-ago 1` 
+
+Print developer report for current week for specified projects only:
+
+`python3 cli.py --report weekly_dev --projects 2 3 5 8`

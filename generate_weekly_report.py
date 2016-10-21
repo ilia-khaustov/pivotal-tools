@@ -11,7 +11,7 @@ class PivotalClient(object):
 
     tracker_token = None
     api_uri = None
-    project_id = None
+    projects = None
 
     PROJECT_ENTITIES = ('stories',)
 
@@ -26,9 +26,9 @@ class PivotalClient(object):
             raise ValueError('api_uri not set')
         if self.api_uri[-1] != '/':
             self.api_uri += '/'
-
-        self.project_id = kwargs.get('project_id')
-
+        self.projects = kwargs.get('project_id')
+        self.get_projects(self.projects)
+        
     def _serialize_uri_params(self, **params):
         return '&'.join(
             [
@@ -44,32 +44,49 @@ class PivotalClient(object):
             'X-TrackerToken': self.tracker_token
         }
 
-    def project(self, project_id):
-        self.project_id = project_id
+    def get_projects(self, project_id):
+        self.projects = []
+        if not project_id:
+            r = requests.get(self.api_uri+'/projects', headers=self._prepare_headers())
+            for i in r.json():
+                self.projects.append(i['id'])
+        else:
+            
+            self.projects = [project_id]
 
-    def _create_path(self, entity):
+    def _create_path(self, project, entity):
         if entity in self.PROJECT_ENTITIES:
-            if not self.project_id:
-                raise ValueError('project_id not set')
-            return 'projects/{}/{}'.format(self.project_id, entity)
+            return 'projects/{}/{}'.format(project, entity)
         else:
             return entity
 
     def get(self, entity, **params):
         if entity[0] == '/':
             entity = entity[1:]
-        path = self._create_path(entity)
-        uri = '{}{}?{}'.format(
-            self.api_uri,
-            path,
-            self._serialize_uri_params(**params)
+        answer = []
+        for project in self.projects:
+            path = self._create_path(project, entity)
+            uri = '{}{}?{}'.format(
+                self.api_uri,
+                path,
+                self._serialize_uri_params(**params)
+            )
+            headers = self._prepare_headers()
+            r = requests.get(uri, headers=headers)
+            r.raise_for_status()
+            for story in r.json():
+                answer.append(story)
+        return answer
+    
+    def me(self):
+        uri = '{}{}'.format(
+                self.api_uri,
+                self._create_path(self.projects[0], 'me'),
         )
-        headers = self._prepare_headers()
-        r = requests.get(uri, headers=headers)
+        r = requests.get(uri, headers=self._prepare_headers())
         r.raise_for_status()
         return r.json()
-
-
+    
 class PivotalReportGenerator(object):
 
     def __init__(self, pivotal_client):
@@ -77,9 +94,9 @@ class PivotalReportGenerator(object):
 
     def weekly_report(self, weeks_ago=0):
         report = '\n'
-
-        me = self.client.get('me')
-
+        
+        me = self.client.me()
+        
         today = datetime.datetime.now() - datetime.timedelta(weeks=weeks_ago)
         
         monday = today - datetime.timedelta(days=today.weekday())
@@ -92,8 +109,8 @@ class PivotalReportGenerator(object):
             'stories',
             updated_after=monday.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
             updated_before=friday.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+            fields="url,name,owner_ids"
         )
-
         report += 'Tasks owned by {}, updated after {} and before {}\n\n'.format(
             me['name'],
             monday.strftime("%Y-%m-%d %H:%M"),
@@ -138,4 +155,3 @@ if __name__ == '__main__':
     )
 
     print(generator.weekly_report(weeks_ago=args.weeks_ago))
-    
